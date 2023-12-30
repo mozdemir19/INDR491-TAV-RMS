@@ -8,7 +8,7 @@ import utils as util
 import os
 
 
-season = 'winter'
+season = 'summer'
 priorityScores = [500, 400, 300, 200]
 min_bucket = 1
 winter = 'RMS-MultiKPI-Input-KisDonemi-GercekVeri.xlsx'
@@ -46,7 +46,8 @@ for t in taskList:
     for r in resourceList:
         x[t, r] = pl.LpVariable('x_%s,%s' % (t, r), lowBound=0, upBound=compatibilities.loc[t, r], cat=pl.LpBinary)
 
-
+U_max = pl.LpVariable('U_max', lowBound=0, upBound=1, cat=pl.LpContinuous)
+U_min = pl.LpVariable('U_min', lowBound=0, upBound=1, cat=pl.LpContinuous)
 ###OBJECTIVE FUNCTION
 problem += pl.lpSum([(U.loc[var] + np.sum([priorities[i].loc[var] for i in range(len(priorities))])) * x[var] for var in x])
 
@@ -68,8 +69,20 @@ for idx, row in taskHeatmap.iterrows():
 
 
 ### RESOURCE UTILIZATION
+# a) find resource with max and min utilization
+totalTime = (tasks['EndDateTime'].max() - tasks['StartDateTime'].min()).total_seconds() / 60
+for r in [29]:
+    rUtil = (pl.LpSum(util.resource_utilization(r, tasks, x)) / totalTime)
+    print(rUtil - U_max)
+    problem += rUtil - U_max <= 0
+    problem += rUtil - U_min >= 0
 
-problem.solve()
+
+
+
+
+solver = pl.getSolver('GUROBI_CMD')
+solver.solve(problem)
 
 assignments = pd.DataFrame(columns=['TaskId', 'ResourceId'])
 for var in x:

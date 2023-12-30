@@ -68,3 +68,10 @@ def utilities(data):
         utilities.loc[row['TaskId'], row['ResourceId']] = row['ScoreValue']
 
     return utilities
+
+def resource_utilization(resource, tasks, x):
+    sum = []
+    for index, row in tasks.iterrows():
+        sum.append(x[row.TaskId, resource] * row['Duration-min'])
+    
+    return sum
