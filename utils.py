@@ -1,13 +1,14 @@
 import pandas as pd
 import numpy as np
 from functools import reduce
+import itertools
 
 def newDF(tasks, resources, defaultValue=0):
     return pd.DataFrame(defaultValue, index=tasks.TaskId, columns=resources.ResourceId)
 
 def read_prios(tasks, resources, priorityContent, scores):
 
-    priorities = [newDF(tasks, resources) for _ in range(priorityContent['PriorityId'].max())]
+    priorities = [newDF(tasks, resources, 0.0) for _ in range(priorityContent['PriorityId'].max())]
 
     for i in range(len(priorities)):
         df = priorities[i]
@@ -18,7 +19,22 @@ def read_prios(tasks, resources, priorityContent, scores):
 
     return priorities
 
-def compute_compatabilities(tasks, resources):
+
+def priorityGroupVars(tasks, resources, priorityContent):
+    priorityVars = []
+
+    for i in range(1, priorityContent.PriorityId.max() + 1):
+        df = newDF(tasks, resources, 0)
+        df.loc[priorityContent.loc[(priorityContent['PriorityId'] == i) & (priorityContent['ObjectType'] == 'Task')]['ObjectId'].values,
+               priorityContent.loc[(priorityContent['PriorityId'] == i) & (priorityContent['ObjectType'] == 'Resource')]['ObjectId'].values] = 1
+        priorityVars.append(df)
+
+    
+    priorityVars.append(newDF(tasks, resources, 1))
+    
+    return priorityVars
+
+def compute_compatibilities(tasks, resources):
     compatibilities = newDF(tasks, resources)
 
     for index, row in tasks.iterrows():
@@ -62,7 +78,7 @@ def utilities(data):
     resources = pd.read_excel(data, sheet_name='Resources')
     scorePairs = pd.read_excel(data, sheet_name='ScorePairs')
 
-    utilities = newDF(tasks, resources, 300)
+    utilities = newDF(tasks, resources, 300.0)
 
     for index, row in scorePairs.iterrows():
         utilities.loc[row['TaskId'], row['ResourceId']] = row['ScoreValue']
@@ -72,6 +88,6 @@ def utilities(data):
 def resource_utilization(resource, tasks, x):
     sum = []
     for index, row in tasks.iterrows():
-        sum.append(x[row.TaskId, resource] * row['Duration-min'])
+        sum.append(x[row.TaskId, resource] * int(row['Duration-min']))
     
     return sum
